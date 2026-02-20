@@ -56,7 +56,7 @@ class DashboardView extends StatelessWidget {
       brandColor: brandColor,
       onSectionTap: (section) {
         if (section == 'Profile') {
-          Get.to(() => const ProfileView());
+          Get.to(() => ProfileView());
         } else if (section == 'Running') {
           _scrollToSection(_runningKey);
         } else if (section == 'Pending') {
@@ -199,7 +199,7 @@ class DashboardView extends StatelessWidget {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       onSelected: (value) {
         if (value == 'profile') {
-          Get.to(() => const ProfileView());
+          Get.to(() => ProfileView());
         } else if (value == 'logout') {
           authController.logout();
         }

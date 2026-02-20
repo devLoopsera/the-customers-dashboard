@@ -4,6 +4,7 @@ import 'package:get_storage/get_storage.dart';
 import 'controllers/auth_controller.dart';
 import 'views/login_view.dart';
 import 'views/dashboard_view.dart';
+import 'views/profile_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -39,6 +40,7 @@ class MyApp extends StatelessWidget {
       getPages: [
         GetPage(name: '/login', page: () => LoginView()),
         GetPage(name: '/dashboard', page: () => DashboardView()),
+        GetPage(name: '/profile', page: () => ProfileView()),
       ],
     );
   }
