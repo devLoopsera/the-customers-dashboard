@@ -12,71 +12,90 @@ class AppSidebar extends StatelessWidget {
     required this.onSectionTap,
   });
 
+  final Color purpleColor = const Color(0xFF696CFF);
+  final Color activeBgColor = const Color(0xFFE7E7FF);
+
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 280,
-      color: Colors.white,
+      width: 260,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border(right: BorderSide(color: Colors.grey.withOpacity(0.2))),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 10,
+            offset: const Offset(4, 0),
+          ),
+        ],
+      ),
       child: Column(
         children: [
-          const SizedBox(height: 40),
+          const SizedBox(height: 30),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Row(
-              children: [
-                Image.asset('assets/images/logo.png', height: 40),
-                const SizedBox(width: 12),
-                const Text(
-                  'RE- Dashboard',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 40),
-          _buildSidebarItem(Icons.dashboard_outlined, 'Dashboard', activeItem == 'Dashboard'),
-          _buildSidebarItem(Icons.person_outline, 'Profile', activeItem == 'Profile'),
-          const Divider(height: 40, indent: 24, endIndent: 24),
-          Padding(
-            padding: const EdgeInsets.only(left: 24, bottom: 12),
             child: Align(
               alignment: Alignment.centerLeft,
               child: Text(
-                'JOB SECTIONS',
-                style: TextStyle(fontSize: 12, color: Colors.grey[500], fontWeight: FontWeight.bold),
+                'customer',
+                style: TextStyle(
+                  fontSize: 22, 
+                  fontWeight: FontWeight.w900, 
+                  color: purpleColor,
+                  letterSpacing: -0.5,
+                ),
               ),
             ),
           ),
-          _buildSidebarItem(Icons.play_circle_outline, 'Running', false),
-          _buildSidebarItem(Icons.pending_actions_outlined, 'Pending', false),
-          _buildSidebarItem(Icons.check_circle_outline, 'Completed', false),
-          _buildSidebarItem(Icons.cancel_outlined, 'Cancelled', false),
+          const SizedBox(height: 30),
+          _buildSidebarItem('Dashboard', activeItem == 'Dashboard'),
+          _buildSidebarItem('Profile', activeItem == 'Profile'),
+          _buildSidebarItem('Invoices', activeItem == 'Invoices'),
+          const Spacer(),
+          const Divider(),
+          _buildSidebarItem('Logout', false, icon: Icons.logout),
+          const SizedBox(height: 20),
         ],
       ),
     );
   }
 
-  Widget _buildSidebarItem(IconData icon, String title, bool isActive) {
+  Widget _buildSidebarItem(String title, bool isActive, {IconData? icon}) {
     return InkWell(
       onTap: () => onSectionTap(title),
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isActive ? brandColor.withOpacity(0.1) : Colors.transparent,
+          color: isActive ? activeBgColor : Colors.transparent,
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           children: [
-            Icon(icon, color: isActive ? brandColor : Colors.grey[600], size: 22),
-            const SizedBox(width: 16),
-            Text(
-              title,
-              style: TextStyle(
-                color: isActive ? brandColor : Colors.grey[700],
-                fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+            if (icon != null) ...[
+              Icon(icon, size: 20, color: const Color(0xFF697A8D)),
+              const SizedBox(width: 12),
+            ],
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: isActive ? purpleColor : const Color(0xFF697A8D),
+                  fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+                  fontSize: 15,
+                ),
               ),
             ),
+            if (isActive)
+              Container(
+                width: 4,
+                height: 20,
+                decoration: BoxDecoration(
+                  color: purpleColor,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
           ],
         ),
       ),

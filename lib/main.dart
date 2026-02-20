@@ -2,16 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'controllers/auth_controller.dart';
+import 'controllers/dashboard_controller.dart';
+import 'controllers/profile_controller.dart';
 import 'views/login_view.dart';
 import 'views/dashboard_view.dart';
 import 'views/profile_view.dart';
+import 'views/invoices_view.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await GetStorage.init();
   
-  // Initialize AuthController globally
+  // Initialize Controllers globally
   Get.put(AuthController());
+  Get.lazyPut(() => DashboardController(), fenix: true);
+  Get.lazyPut(() => ProfileController(), fenix: true);
   
   runApp(const MyApp());
 }
@@ -33,7 +38,7 @@ class MyApp extends StatelessWidget {
           brightness: Brightness.light,
         ),
         useMaterial3: true,
-        fontFamily: 'Inter', // Assuming Inter is available or fallback to default
+        fontFamily: 'Inter',
       ),
       debugShowCheckedModeBanner: false,
       initialRoute: authController.isLoggedIn ? '/dashboard' : '/login',
@@ -41,6 +46,7 @@ class MyApp extends StatelessWidget {
         GetPage(name: '/login', page: () => LoginView()),
         GetPage(name: '/dashboard', page: () => DashboardView()),
         GetPage(name: '/profile', page: () => ProfileView()),
+        GetPage(name: '/invoices', page: () => InvoicesView()),
       ],
     );
   }

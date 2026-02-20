@@ -6,72 +6,62 @@ import '../controllers/dashboard_controller.dart';
 import '../controllers/profile_controller.dart';
 import '../models/dashboard_model.dart';
 import '../widgets/app_sidebar.dart';
+import '../widgets/app_footer.dart';
 import '../widgets/glowing_border.dart';
 import '../widgets/glowing_button.dart';
+import '../widgets/job_calendar.dart';
 import 'profile_view.dart';
 
 class DashboardView extends StatelessWidget {
-  final String? initialSection;
-  DashboardView({super.key, this.initialSection});
+  DashboardView({super.key});
+
+  static const emeraldGreen = Color(0xFF2E7D6A);
 
   final AuthController authController = Get.find<AuthController>();
-  final DashboardController dashboardController = Get.put(DashboardController());
-  final ProfileController profileController = Get.put(ProfileController());
+  final DashboardController dashboardController = Get.find<DashboardController>();
+  final ProfileController profileController = Get.find<ProfileController>();
 
   final ScrollController _scrollController = ScrollController();
-  final _runningKey = GlobalKey();
-  final _pendingKey = GlobalKey();
-  final _completedKey = GlobalKey();
-  final _cancelledKey = GlobalKey();
-
-  void _scrollToSection(GlobalKey key) {
-    final context = key.currentContext;
-    if (context != null) {
-      Scrollable.ensureVisible(
-        context,
-        duration: const Duration(milliseconds: 500),
-        curve: Curves.easeInOut,
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    const brandColor = Color(0xFF2E7D6A); // Updated to match login teal
     final isMobile = MediaQuery.of(context).size.width < 1024;
-
-    if (initialSection != null) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        Future.delayed(const Duration(milliseconds: 300), () {
-          if (initialSection == 'Running') _scrollToSection(_runningKey);
-          if (initialSection == 'Pending') _scrollToSection(_pendingKey);
-          if (initialSection == 'Completed') _scrollToSection(_completedKey);
-          if (initialSection == 'Cancelled') _scrollToSection(_cancelledKey);
-        });
-      });
-    }
 
     final sidebar = AppSidebar(
       activeItem: 'Dashboard',
-      brandColor: brandColor,
+      brandColor: emeraldGreen,
       onSectionTap: (section) {
         if (section == 'Profile') {
-          Get.to(() => ProfileView());
-        } else if (section == 'Running') {
-          _scrollToSection(_runningKey);
-        } else if (section == 'Pending') {
-          _scrollToSection(_pendingKey);
-        } else if (section == 'Completed') {
-          _scrollToSection(_completedKey);
-        } else if (section == 'Cancelled') {
-          _scrollToSection(_cancelledKey);
+          Get.toNamed('/profile');
         } else if (section == 'Dashboard') {
           _scrollController.animateTo(0, duration: const Duration(milliseconds: 500), curve: Curves.easeInOut);
+        } else {
+          // Fixed offsets for sections based on typical layout height
+          double offset = 0;
+          if (section == 'Running') offset = 400;
+          if (section == 'Pending') offset = 800;
+          if (section == 'Completed') offset = 1200;
+          if (section == 'Cancelled') offset = 1600;
+
+          if (offset > 0) {
+            _scrollController.animateTo(
+              offset,
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeInOut,
+            );
+          } else if (section == 'Invoices') {
+            Get.toNamed('/invoices');
+          } else if (section == 'Logout') {
+            authController.logout();
+          } else if (section == 'Services' || section == 'Work Hour') {
+            Get.snackbar('Coming Soon', '$section page is under development');
+          }
         }
       },
     );
 
     return Scaffold(
+      key: UniqueKey(),
       backgroundColor: const Color(0xFFF3F4F6),
       drawer: isMobile ? Drawer(child: sidebar) : null,
       body: Row(
@@ -80,7 +70,7 @@ class DashboardView extends StatelessWidget {
           Expanded(
             child: Column(
               children: [
-                _buildMainHeader(brandColor, isMobile),
+                _buildMainHeader(emeraldGreen, isMobile),
                 Expanded(
                   child: Obx(() {
                     if (dashboardController.isLoading.value) {
@@ -100,43 +90,46 @@ class DashboardView extends StatelessWidget {
                         children: [
                           _buildContentHeader(),
                           const SizedBox(height: 24),
-                          _buildSummarySection(summary, brandColor, isMobile),
+                          _buildSummarySection(summary, emeraldGreen, isMobile),
+                          const SizedBox(height: 32),
+                          JobCalendar(
+                            jobs: [...dashboardController.completedJobs, ...dashboardController.pendingJobs], 
+                            brandColor: emeraldGreen
+                          ),
                           const SizedBox(height: 32),
                           _buildJobSection(
-                            'Running Jobs',
+                            'Running Services',
                             dashboardController.runningJobs,
                             dashboardController.visibleRunningCount,
                             dashboardController.loadMoreRunning,
-                            brandColor,
-                            key: _runningKey,
+                            emeraldGreen,
                           ),
                           const SizedBox(height: 24),
                           _buildJobSection(
-                            'Pending Jobs',
+                            'Pending Services',
                             dashboardController.pendingJobs,
                             dashboardController.visiblePendingCount,
                             dashboardController.loadMorePending,
                             Colors.orange,
-                            key: _pendingKey,
                           ),
                           const SizedBox(height: 24),
                           _buildJobSection(
-                            'Recent Completed Jobs',
+                            'Completed Services',
                             dashboardController.completedJobs,
                             dashboardController.visibleCompletedCount,
                             dashboardController.loadMoreCompleted,
                             Colors.green,
-                            key: _completedKey,
                           ),
                           const SizedBox(height: 24),
                           _buildJobSection(
-                            'Cancelled Jobs',
+                            'Cancelled Services',
                             dashboardController.cancelledJobs,
                             dashboardController.visibleCancelledCount,
                             dashboardController.loadMoreCancelled,
                             Colors.red,
-                            key: _cancelledKey,
                           ),
+                          const SizedBox(height: 48),
+                          const AppFooter(),
                         ],
                       ),
                     );
@@ -153,11 +146,19 @@ class DashboardView extends StatelessWidget {
   Widget _buildMainHeader(Color brandColor, bool isMobile) {
     return Builder(
       builder: (context) => Container(
-        padding: EdgeInsets.symmetric(
-          horizontal: isMobile ? 16 : 32, 
-          vertical: isMobile ? 12 : 20
+        margin: EdgeInsets.all(isMobile ? 16 : 24),
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 2),
+            ),
+          ],
         ),
-        color: Colors.white,
         child: Row(
           children: [
             if (isMobile) ...[
@@ -167,22 +168,19 @@ class DashboardView extends StatelessWidget {
               ),
               const SizedBox(width: 8),
             ],
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Dashboard',
-                    style: TextStyle(
-                      fontSize: isMobile ? 18 : 24, 
-                      color: const Color(0xFF4B5563), 
-                      fontWeight: FontWeight.bold
-                    ),
+            const Expanded(
+              child: Center(
+                child: Text(
+                  'Larenting Group LLC / Max Co-Host',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 24, 
+                    color: Color(0xFF2E7D6A), 
+                    fontWeight: FontWeight.w500,
                   ),
-                ],
+                ),
               ),
             ),
-            const SizedBox(width: 24),
             _buildProfileDropdown(brandColor),
           ],
         ),
@@ -191,12 +189,13 @@ class DashboardView extends StatelessWidget {
   }
 
   Widget _buildProfileDropdown(Color brandColor) {
-    final email = authController.currentUser.value?.email ?? 'info@customer.com';
-    final role = 'Customer';
+    final email = authController.currentUser.value?.email ?? 'info@max.com';
 
     return PopupMenuButton<String>(
-      offset: const Offset(0, 50),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      offset: const Offset(0, 60),
+      elevation: 8,
+      shadowColor: Colors.black.withOpacity(0.2),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       onSelected: (value) {
         if (value == 'profile') {
           Get.to(() => ProfileView());
@@ -207,42 +206,61 @@ class DashboardView extends StatelessWidget {
       itemBuilder: (context) => [
         PopupMenuItem<String>(
           value: 'profile',
-          child: Row(
-            children: [
-              _buildUserAvatarWithStatus(brandColor, radius: 20),
-              const SizedBox(width: 12),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    email,
-                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF4B5563)),
-                  ),
-                  Text(
-                    role,
-                    style: TextStyle(color: Colors.grey[500], fontSize: 14),
-                  ),
-                ],
-              ),
-            ],
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                _buildUserAvatarWithStatus(brandColor, radius: 24),
+                const SizedBox(width: 16),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      email,
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: Color(0xFF566573), // Darker grey/blue
+                      ),
+                    ),
+                    const Text(
+                      'customer',
+                      style: TextStyle(
+                        color: Color(0xFFABB2B9), // Light grey
+                        fontSize: 14,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
-        const PopupMenuDivider(),
+        const PopupMenuDivider(height: 1),
         PopupMenuItem<String>(
           value: 'logout',
-          child: Row(
-            children: [
-              const Icon(Icons.power_settings_new, color: Color(0xFF6B7280), size: 20),
-              const SizedBox(width: 12),
-              const Text(
-                'Logout',
-                style: TextStyle(color: Color(0xFF4B5563), fontSize: 16),
-              ),
-            ],
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: const Row(
+              children: [
+                Icon(Icons.power_settings_new_outlined, color: Color(0xFF566573), size: 22),
+                const SizedBox(width: 16),
+                Text(
+                  'Abmelden',
+                  style: TextStyle(
+                    color: Color(0xFF566573),
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ],
-      child: _buildUserAvatarWithStatus(brandColor),
+      child: _buildUserAvatarWithStatus(brandColor, radius: 22),
     );
   }
 
@@ -274,17 +292,48 @@ class DashboardView extends StatelessWidget {
   Widget _buildContentHeader() {
     return Obx(() {
       final customerName = authController.currentUser.value?.name ?? 'Customer';
+      const emeraldGreen = Color(0xFF2E7D6A);
+
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Welcome back,',
-            style: TextStyle(fontSize: 16, color: Colors.grey[600], fontWeight: FontWeight.w500),
+          IntrinsicWidth(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Welcome back, ',
+                      style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.w500),
+                    ),
+                    Text(
+                      customerName,
+                      style: const TextStyle(fontSize: 18, color: Color(0xFF1F2937), fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Container(
+                  height: 2,
+                  decoration: BoxDecoration(
+                    color: emeraldGreen,
+                    borderRadius: BorderRadius.circular(1),
+                  ),
+                ),
+              ],
+            ),
           ),
-          const SizedBox(height: 4),
-          Text(
-            customerName,
-            style: const TextStyle(fontSize: 28, color: Color(0xFF1F2937), fontWeight: FontWeight.bold),
+          const SizedBox(height: 20),
+          const Text(
+            'Alle Aufträge',
+            style: TextStyle(
+              fontSize: 26, 
+              color: Color(0xFF1F2937), 
+              fontWeight: FontWeight.bold,
+              letterSpacing: -0.5,
+            ),
           ),
         ],
       );
@@ -305,7 +354,7 @@ class DashboardView extends StatelessWidget {
           children: [
             _buildSummaryCard(
               'Activity Overview',
-              'Total Jobs: ${summary.totalJobs}',
+              'Total Services: ${summary.totalJobs}',
               'Running: ${summary.runningJobs} | Pending: ${summary.pendingJobs}',
               Icons.work_outline,
               brandColor,
@@ -393,49 +442,52 @@ class DashboardView extends StatelessWidget {
     RxInt visibleCount,
     VoidCallback onLoadMore,
     Color categoryColor, {
-    Key? key,
     bool showSeeMore = true,
   }) {
     final isMobile = Get.width < 1024;
-    return Obx(() {
-      if (jobs.isEmpty) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Obx(() {
+          if (jobs.isEmpty) return const SizedBox.shrink();
 
-      final displayCount = visibleCount.value > jobs.length ? jobs.length : visibleCount.value;
-      final displayJobs = jobs.take(displayCount).toList();
+          final displayCount = visibleCount.value > jobs.length ? jobs.length : visibleCount.value;
+          final displayJobs = jobs.take(displayCount).toList();
 
-      return Column(
-        key: key,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12.0),
-            child: Text(
-              title,
-              style: TextStyle(fontSize: isMobile ? 18 : 20, fontWeight: FontWeight.bold, color: categoryColor),
-            ),
-          ),
-          ...displayJobs.map((job) => _buildExpandableJobCard(job, categoryColor)),
-          if (showSeeMore && visibleCount.value < jobs.length)
-            Padding(
-              padding: const EdgeInsets.only(top: 8.0, bottom: 16.0),
-              child: Center(
-                child: GlowingButton(
-                  onPressed: onLoadMore,
-                  glowColor: categoryColor,
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.add_circle_outline, size: 18, color: categoryColor),
-                      const SizedBox(width: 8),
-                      const Text('See More'),
-                    ],
-                  ),
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12.0),
+                child: Text(
+                  title,
+                  style: TextStyle(fontSize: isMobile ? 18 : 20, fontWeight: FontWeight.bold, color: categoryColor),
                 ),
               ),
-            ),
-        ],
-      );
-    });
+              ...displayJobs.map((job) => _buildExpandableJobCard(job, categoryColor)),
+              if (showSeeMore && visibleCount.value < jobs.length)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8.0, bottom: 16.0),
+                  child: Center(
+                    child: GlowingButton(
+                      onPressed: onLoadMore,
+                      glowColor: categoryColor,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.add_circle_outline, size: 18, color: categoryColor),
+                          const SizedBox(width: 8),
+                          const Text('See More'),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          );
+        }),
+      ],
+    );
   }
 
   Widget _buildExpandableJobCard(Job job, Color statusColor) {
@@ -489,7 +541,7 @@ class DashboardView extends StatelessWidget {
                           children: [
                             Expanded(
                               child: Text(
-                                job.customerName,
+                                job.serviceName ?? 'Unnamed Service',
                                 style: TextStyle(fontSize: isMobile ? 16 : 18, fontWeight: FontWeight.bold),
                               ),
                             ),
@@ -546,25 +598,43 @@ class DashboardView extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
+                          _buildDetailRow('Service', job.serviceName ?? 'N/A', isMobile),
+                          const SizedBox(height: 8),
+                          if (job.optionalProducts != null && job.optionalProducts!.isNotEmpty) ...[
+                            _buildDetailRow('Optional Products', job.optionalProducts!, isMobile),
+                            const SizedBox(height: 8),
+                          ],
+                          if (job.customerMessage != null && job.customerMessage!.isNotEmpty) ...[
+                            _buildDetailRow('Customer Message', job.customerMessage!, isMobile),
+                            const SizedBox(height: 8),
+                          ],
                           _buildDetailRow('Customer Schedule', 
                             '${job.customerStartTime ?? "N/A"} - ${job.customerStopTime ?? "N/A"}', isMobile),
                           const SizedBox(height: 8),
                           _buildDetailRow('Employee Time', 
                             '${job.employeeStartTime ?? "N/A"} - ${job.employeeEndTime ?? "N/A"}', isMobile),
-                          if (job.status == 'completed' && job.employeeTotalHours != null) ...[
+                          if (job.status == 'completed') ...[
                             const SizedBox(height: 12),
                             const Divider(),
+                            const SizedBox(height: 8),
+                            _buildDetailRow('Net Price', '€${job.customerPriceNetto?.toStringAsFixed(2) ?? "0.00"}', isMobile),
+                            const SizedBox(height: 4),
+                            _buildDetailRow('Tax', '${job.taxValue != null ? "€${job.taxValue!.toStringAsFixed(2)}" : "N/A"} (${job.taxPercent != null ? "${(job.taxPercent! * 100).toInt()}%" : "0%"})', isMobile),
                             const SizedBox(height: 4),
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Text('Actual Hours Done:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: isMobile ? 13 : 14)),
+                                Text('Brutto Total:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: isMobile ? 13 : 14)),
                                 Text(
-                                  '${job.employeeTotalHours} hours',
-                                  style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green, fontSize: isMobile ? 13 : 14),
+                                  '€${job.bruttoCustomerPay?.toStringAsFixed(2) ?? "0.00"}',
+                                  style: TextStyle(fontWeight: FontWeight.bold, color: emeraldGreen, fontSize: isMobile ? 13 : 14),
                                 ),
                               ],
                             ),
+                            if (job.employeeTotalHours != null) ...[
+                              const SizedBox(height: 8),
+                              _buildDetailRow('Actual Hours Done', '${job.employeeTotalHours} hours', isMobile),
+                            ],
                           ],
                           if (job.status == 'cancelled' && job.cancelledDateTime != null && job.cancelledDateTime!.isNotEmpty) ...[
                              const SizedBox(height: 8),
@@ -579,6 +649,7 @@ class DashboardView extends StatelessWidget {
           ),
         ));
   }
+
 
   Widget _buildDetailRow(String label, String value, bool isMobile) {
     return Column(

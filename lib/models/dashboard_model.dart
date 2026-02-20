@@ -44,6 +44,19 @@ class Job {
   final double? employeeTotalHours;
   final String? cancelledDateTime;
 
+  final double? price;
+  final String? serviceName;
+  
+  // New fields from updated webhook
+  final String? optionalProducts;
+  final String? customerMessage;
+  final double? servicePriceNetto;
+  final String? unit;
+  final double? bruttoCustomerPay;
+  final double? taxValue;
+  final double? taxPercent;
+  final double? customerPriceNetto;
+
   Job({
     required this.jobId,
     required this.customerName,
@@ -57,22 +70,62 @@ class Job {
     this.employeeEndTime,
     this.employeeTotalHours,
     this.cancelledDateTime,
+    this.price,
+    this.serviceName,
+    this.optionalProducts,
+    this.customerMessage,
+    this.servicePriceNetto,
+    this.unit,
+    this.bruttoCustomerPay,
+    this.taxValue,
+    this.taxPercent,
+    this.customerPriceNetto,
   });
 
   factory Job.fromJson(Map<String, dynamic> json) {
+    double? parseDouble(dynamic value) {
+      if (value == null) return null;
+      if (value is num) return value.toDouble();
+      return double.tryParse(value.toString());
+    }
+
+    final custPriceNetto = parseDouble(json['customer_price_netto']);
+    final oldPrice = parseDouble(json['price']);
+
+    String? service = json['service']?.toString().trim();
+    String? serviceNameField = json['service_name']?.toString().trim();
+    String fallbackName = json['customer_name']?.toString().trim() ?? 'Unnamed Service';
+
+    // Prioritize the specific 'service' key mentioned by the user
+    String finalServiceName = (service != null && service.isNotEmpty) 
+        ? service 
+        : (serviceNameField != null && serviceNameField.isNotEmpty)
+            ? serviceNameField
+            : fallbackName;
+
     return Job(
       jobId: json['job_id'] ?? '',
       customerName: json['customer_name'] ?? '',
       date: json['date'] ?? '',
       status: json['status'] ?? '',
-      hours: (json['hours'] ?? 0).toDouble(),
+      hours: parseDouble(json['hours']) ?? 0.0,
       address: json['address'] ?? '',
       customerStartTime: json['customer_start_time'],
       customerStopTime: json['customer_stop_time'],
       employeeStartTime: json['employee_start_time'],
       employeeEndTime: json['employee_end_time'],
-      employeeTotalHours: json['employee_total_hours'] != null ? (json['employee_total_hours']).toDouble() : null,
+      employeeTotalHours: parseDouble(json['employee_total_hours']),
       cancelledDateTime: json['cancelled_date_time'],
+      price: custPriceNetto ?? oldPrice,
+      serviceName: finalServiceName,
+      optionalProducts: json['optional_products'],
+      customerMessage: json['customer_message'],
+      servicePriceNetto: parseDouble(json['service_price_netto']),
+      unit: json['unit'],
+      bruttoCustomerPay: parseDouble(json['brutto_customer_pay']),
+      taxValue: parseDouble(json['tax_value']),
+      taxPercent: parseDouble(json['tax_percent']),
+      customerPriceNetto: custPriceNetto,
     );
   }
 }
