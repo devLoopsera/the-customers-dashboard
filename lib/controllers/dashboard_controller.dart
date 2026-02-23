@@ -2,7 +2,9 @@ import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import '../models/dashboard_model.dart';
+import '../models/support_config_model.dart';
 import '../services/api_service.dart';
+import '../services/support_service.dart';
 import 'auth_controller.dart';
 
 class DashboardController extends GetxController {
@@ -12,6 +14,7 @@ class DashboardController extends GetxController {
 
   final RxBool isLoading = true.obs;
   final Rxn<DashboardSummary> summary = Rxn<DashboardSummary>();
+  final Rxn<SupportConfig> supportConfig = Rxn<SupportConfig>();
   
   final RxList<Job> runningJobs = <Job>[].obs;
   final RxList<Job> pendingJobs = <Job>[].obs;
@@ -28,6 +31,7 @@ class DashboardController extends GetxController {
   void onInit() {
     super.onInit();
     fetchDashboardData();
+    fetchSupportConfig();
   }
 
   Future<void> fetchDashboardData() async {
@@ -52,6 +56,12 @@ class DashboardController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+  
+  Future<void> fetchSupportConfig() async {
+    final supportService = Get.find<SupportService>();
+    final config = await supportService.getSupportConfig();
+    supportConfig.value = config;
   }
 
   void loadMoreRunning() => visibleRunningCount.value += 5;

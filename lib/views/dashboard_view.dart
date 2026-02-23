@@ -5,6 +5,7 @@ import '../controllers/auth_controller.dart';
 import '../controllers/dashboard_controller.dart';
 import '../controllers/profile_controller.dart';
 import '../models/dashboard_model.dart';
+import '../services/support_service.dart';
 import '../widgets/app_sidebar.dart';
 import '../widgets/app_footer.dart';
 import '../widgets/glowing_border.dart';
@@ -181,6 +182,8 @@ class DashboardView extends StatelessWidget {
                 ),
               ),
             ),
+            _buildSupportButtons(isMobile),
+            const SizedBox(width: 16),
             _buildProfileDropdown(brandColor),
           ],
         ),
@@ -262,6 +265,83 @@ class DashboardView extends StatelessWidget {
       ],
       child: _buildUserAvatarWithStatus(brandColor, radius: 22),
     );
+  }
+
+  Widget _buildSupportButtons(bool isMobile) {
+    final supportService = Get.find<SupportService>();
+
+    return Obx(() {
+      final config = dashboardController.supportConfig.value;
+      if (config == null) return const SizedBox.shrink();
+
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (config.whatsappNumber.isNotEmpty)
+            Tooltip(
+              message: 'WhatsApp Support',
+              child: InkWell(
+                onTap: () => supportService.launchWhatsApp(
+                  config.whatsappNumber,
+                ),
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: EdgeInsets.all(isMobile ? 8 : 10),
+                  decoration: BoxDecoration(
+                    color: Colors.green.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.green.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.wechat, color: Colors.green, size: 20), // Using wechat or similar icon for chat
+                      if (!isMobile) ...[
+                        const SizedBox(width: 6),
+                        const Text('WhatsApp', style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold, fontSize: 13)),
+                      ]
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          if (config.whatsappNumber.isNotEmpty && (config.telegramUsername.isNotEmpty || config.telegramBotLink.isNotEmpty))
+            const SizedBox(width: 12),
+          if (config.telegramUsername.isNotEmpty || config.telegramBotLink.isNotEmpty)
+            Tooltip(
+              message: 'Telegram Support',
+              child: InkWell(
+                onTap: () {
+                  if (config.telegramBotLink.isNotEmpty) {
+                    supportService.launchTelegramBot(config.telegramBotLink);
+                  } else {
+                    supportService.launchTelegram(config.telegramUsername);
+                  }
+                },
+                borderRadius: BorderRadius.circular(8),
+                child: Container(
+                  padding: EdgeInsets.all(isMobile ? 8 : 10),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.blue.withOpacity(0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.telegram, color: Colors.blue, size: 20),
+                      if (!isMobile) ...[
+                        const SizedBox(width: 6),
+                        const Text('Telegram', style: TextStyle(color: Colors.blue, fontWeight: FontWeight.bold, fontSize: 13)),
+                      ]
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
+      );
+    });
   }
 
   Widget _buildUserAvatarWithStatus(Color brandColor, {double radius = 20}) {

@@ -4,6 +4,7 @@ import 'package:get_storage/get_storage.dart';
 import 'controllers/auth_controller.dart';
 import 'controllers/dashboard_controller.dart';
 import 'controllers/profile_controller.dart';
+import 'services/support_service.dart';
 import 'views/login_view.dart';
 import 'views/dashboard_view.dart';
 import 'views/profile_view.dart';
@@ -17,6 +18,7 @@ void main() async {
   Get.put(AuthController());
   Get.lazyPut(() => DashboardController(), fenix: true);
   Get.lazyPut(() => ProfileController(), fenix: true);
+  Get.lazyPut(() => SupportService(), fenix: true);
   
   runApp(const MyApp());
 }
