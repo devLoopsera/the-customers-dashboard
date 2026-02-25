@@ -13,44 +13,68 @@ class AppFooter extends StatelessWidget {
     final isMobile = MediaQuery.of(context).size.width < 768;
     final isTab = MediaQuery.of(context).size.width < 1024 && !isMobile;
 
+    final content = isMobile
+        ? Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildCompanyInfo(),
+              const SizedBox(height: 24),
+              _buildContactInfo(),
+              const SizedBox(height: 24),
+              _buildWebsiteTaxInfo(),
+              const SizedBox(height: 24),
+              _buildIdNumberInfo(),
+              const SizedBox(height: 24),
+              _buildBankInfo(),
+            ],
+          )
+        : Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(child: _buildCompanyInfo()),
+              Expanded(child: _buildContactInfo()),
+              Expanded(child: _buildWebsiteTaxInfo()),
+              Expanded(child: _buildIdNumberInfo()),
+              Expanded(child: _buildBankInfo()),
+            ],
+          );
+
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
-        color: Colors.white,
-        border: Border(
-          top: BorderSide(color: Color(0xFF2E7D6A), width: 1), // Top teal border
-        ),
-      ),
-      padding: EdgeInsets.symmetric(
-        horizontal: isMobile ? 20 : (isTab ? 40 : 60),
-        vertical: 40,
-      ),
-      child: isMobile
-          ? Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+      color: Colors.white,
+      child: Column(
+        children: [
+          Container(
+            height: 3,
+            color: Colors.black,
+          ),
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: isMobile ? 20 : (isTab ? 40 : 60),
+              vertical: 40,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _buildCompanyInfo(),
-                const SizedBox(height: 24),
-                _buildContactInfo(),
-                const SizedBox(height: 24),
-                _buildWebsiteTaxInfo(),
-                const SizedBox(height: 24),
-                _buildIdNumberInfo(),
-                const SizedBox(height: 24),
-                _buildBankInfo(),
-              ],
-            )
-          : Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(child: _buildCompanyInfo()),
-                Expanded(child: _buildContactInfo()),
-                Expanded(child: _buildWebsiteTaxInfo()),
-                Expanded(child: _buildIdNumberInfo()),
-                Expanded(child: _buildBankInfo()),
+                content,
+                const SizedBox(height: 48),
+                const Divider(color: Colors.black, thickness: 1),
+                const SizedBox(height: 16),
+                const Text(
+                  'Made with passion by Max Co-Host',
+                  style: TextStyle(
+                    color: Color(0xFF6B7280),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
               ],
             ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -58,7 +82,10 @@ class AppFooter extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Fleckfrei.de', style: TextStyle(color: labelColor, fontWeight: FontWeight.w500)),
+        InkWell(
+          onTap: () => _launchUrl('https://www.fleckfrei.de'),
+          child: Text('Fleckfrei.de', style: TextStyle(color: linkColor, fontWeight: FontWeight.w500)),
+        ),
         const SizedBox(height: 8),
         Text('Postanschrift', style: TextStyle(color: labelColor, fontWeight: FontWeight.w500)),
         const SizedBox(height: 4),
@@ -75,7 +102,7 @@ class AppFooter extends StatelessWidget {
         Text('Telefonnummer', style: TextStyle(color: labelColor, fontWeight: FontWeight.w500)),
         const SizedBox(height: 4),
         InkWell(
-          onTap: () => _launchUrl('tel:+1509743228'),
+          onTap: () => _launchUrl('https://wa.me/1509743228'),
           child: Text('+1509743228', style: TextStyle(color: linkColor)),
         ),
         const SizedBox(height: 12),
@@ -111,13 +138,13 @@ class AppFooter extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('USt-IdNr', style: TextStyle(color: labelColor, fontWeight: FontWeight.w500)),
-        const SizedBox(height: 4),
-        Text('DE301503988', style: TextStyle(color: valueColor)),
-        const SizedBox(height: 12),
         Text('Betriebsnummer', style: TextStyle(color: labelColor, fontWeight: FontWeight.w500)),
         const SizedBox(height: 4),
         Text('969504433', style: TextStyle(color: valueColor)),
+        const SizedBox(height: 12),
+        Text('USt-IdNr', style: TextStyle(color: labelColor, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 4),
+        Text('DE301503988', style: TextStyle(color: valueColor)),
       ],
     );
   }
