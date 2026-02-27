@@ -17,13 +17,88 @@ class ProfileController extends GetxController {
   final String _profileUrl = 'https://n8n.la-renting.com/webhook/customer-profile';
   final String _profilePicWebhookUrl = 'https://n8n.la-renting.com/webhook/customer-profile-pic';
   final String _deletePicWebhookUrl = 'https://n8n.la-renting.com/webhook/customer-profile-pic-delete';
+  final String _profilePicRequestUrl = 'https://n8n.la-renting.com/webhook/customer-profile-pic-request';
   
   final ImagePicker _picker = ImagePicker();
+  
+  // Guard to prevent multiple simultaneous requests
+  bool _isFetchingPic = false;
 
   @override
   void onInit() {
     super.onInit();
-    fetchProfile();
+    _initializeProfile();
+  }
+
+  Future<void> _initializeProfile() async {
+    await fetchProfile();
+    // Only fetch if profile exists and we don't already have a picture
+    if (profile.value != null && (profile.value!.profilePic == null || profile.value!.profilePic!.isEmpty)) {
+      await fetchProfilePic();
+    }
+  }
+
+  Future<void> fetchProfilePic({bool force = false}) async {
+    if (profile.value == null) return;
+    
+    // Skip if already fetching or if we already have a pic and not forcing a refresh
+    if (_isFetchingPic) return;
+    if (!force && profile.value!.profilePic != null && profile.value!.profilePic!.isNotEmpty) return;
+    
+    _isFetchingPic = true;
+    try {
+      debugPrint('Requesting profile pic for: ${profile.value!.email}');
+      final response = await http.post(
+        Uri.parse(_profilePicRequestUrl),
+        headers: {'Content-Type': 'application/json'},
+        body: json.encode(profile.value!.toJson()),
+      );
+
+      debugPrint('Profile Pic Request Response: ${response.statusCode}');
+
+      if (response.statusCode == 200) {
+        final contentType = response.headers['content-type']?.toLowerCase() ?? '';
+        
+        // Handle image binary response
+        if (contentType.startsWith('image/')) {
+          final base64String = base64Encode(response.bodyBytes);
+          final dataUri = 'data:$contentType;base64,$base64String';
+          profile.value = profile.value?.copyWith(profilePic: dataUri);
+          debugPrint('Set profile pic from binary request');
+          return;
+        }
+
+        // Handle JSON or Text
+        if (response.body.isNotEmpty) {
+          try {
+            final decoded = json.decode(response.body.trim());
+            String? imageUrl;
+            
+            if (decoded is Map<String, dynamic>) {
+              imageUrl = (decoded['profile_pic'] ?? decoded['image_url'] ?? decoded['url'])?.toString();
+            } else if (decoded is List && decoded.isNotEmpty) {
+              final first = decoded.first;
+              if (first is Map<String, dynamic>) {
+                imageUrl = (first['profile_pic'] ?? first['image_url'] ?? first['url'])?.toString();
+              }
+            }
+
+            if (imageUrl != null && imageUrl.startsWith('http')) {
+              profile.value = profile.value?.copyWith(profilePic: imageUrl);
+            }
+          } catch (e) {
+            // Raw URL string
+            if (response.body.trim().startsWith('http')) {
+              profile.value = profile.value?.copyWith(profilePic: response.body.trim());
+            }
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching profile pic: $e');
+    } finally {
+      _isFetchingPic = false;
+    }
   }
 
   Future<void> fetchProfile() async {
