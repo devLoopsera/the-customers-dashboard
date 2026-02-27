@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../services/support_service.dart';
+import '../controllers/dashboard_controller.dart';
 
 class AppFooter extends StatelessWidget {
   const AppFooter({super.key});
@@ -61,14 +65,42 @@ class AppFooter extends StatelessWidget {
                 const SizedBox(height: 48),
                 const Divider(color: Colors.black, thickness: 1),
                 const SizedBox(height: 16),
-                const Text(
-                  'Made with passion by Max Co-Host',
-                  style: TextStyle(
-                    color: Color(0xFF6B7280),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                Center(
+                  child: RichText(
+                    textAlign: TextAlign.center,
+                    text: TextSpan(
+                      style: const TextStyle(
+                        color: Color(0xFF6B7280),
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        fontFamily: 'Inter',
+                      ),
+                      children: [
+                        const TextSpan(text: 'Made with passion by '),
+                        TextSpan(
+                          text: 'Max Co-Host',
+                          style: const TextStyle(
+                            color: Color(0xFF5A67D8), // Using the linkColor
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.underline,
+                          ),
+                          recognizer: TapGestureRecognizer()
+                            ..onTap = () {
+                              final dashboardController = Get.find<DashboardController>();
+                              final supportService = Get.find<SupportService>();
+                              final config = dashboardController.supportConfig.value;
+                              
+                              if (config != null && config.whatsappNumber.isNotEmpty) {
+                                supportService.launchWhatsApp(config.whatsappNumber);
+                              } else {
+                                // Fallback fallback if config isn't loaded yet
+                                supportService.launchWhatsApp('1509743228');
+                              }
+                            },
+                        ),
+                      ],
+                    ),
                   ),
-                  textAlign: TextAlign.center,
                 ),
               ],
             ),
