@@ -10,6 +10,7 @@ class UserProfile {
   final String language2;
   final String country;
   final bool hasPictures;
+  final String? profilePic;
 
   UserProfile({
     required this.name,
@@ -23,6 +24,7 @@ class UserProfile {
     required this.language2,
     required this.country,
     required this.hasPictures,
+    this.profilePic,
   });
 
   factory UserProfile.fromJson(Map<String, dynamic> json) {
@@ -38,6 +40,54 @@ class UserProfile {
       language2: (json['language_2'] ?? 'N/A').toString(),
       country: (json['country'] ?? '').toString(),
       hasPictures: json['has_pictures'] ?? false,
+      profilePic: json['profile_pic']?.toString(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'name': name,
+      'address': address,
+      'phone': phone,
+      'email': email,
+      'customer_id': customerId,
+      'customer_type': customerType,
+      'status': status,
+      'language_1': language1,
+      'language_2': language2,
+      'country': country,
+      'has_pictures': hasPictures,
+      'profile_pic': profilePic,
+    };
+  }
+
+  UserProfile copyWith({
+    String? name,
+    String? address,
+    String? phone,
+    String? email,
+    String? customerId,
+    String? customerType,
+    String? status,
+    String? language1,
+    String? language2,
+    String? country,
+    bool? hasPictures,
+    String? profilePic,
+  }) {
+    return UserProfile(
+      name: name ?? this.name,
+      address: address ?? this.address,
+      phone: phone ?? this.phone,
+      email: email ?? this.email,
+      customerId: customerId ?? this.customerId,
+      customerType: customerType ?? this.customerType,
+      status: status ?? this.status,
+      language1: language1 ?? this.language1,
+      language2: language2 ?? this.language2,
+      country: country ?? this.country,
+      hasPictures: hasPictures ?? this.hasPictures,
+      profilePic: profilePic ?? this.profilePic,
     );
   }
 

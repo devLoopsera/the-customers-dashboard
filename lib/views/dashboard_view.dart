@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -345,28 +346,49 @@ class DashboardView extends StatelessWidget {
   }
 
   Widget _buildUserAvatarWithStatus(Color brandColor, {double radius = 20}) {
-    return Stack(
-      children: [
-        CircleAvatar(
-          radius: radius,
-          backgroundColor: Colors.grey[200],
-          child: Icon(Icons.person, color: Colors.grey, size: radius * 1.2),
-        ),
-        Positioned(
-          right: 0,
-          bottom: 0,
-          child: Container(
-            width: radius * 0.6,
-            height: radius * 0.6,
-            decoration: BoxDecoration(
-              color: const Color(0xFF4ADE80),
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.white, width: 2),
+    return Obx(() {
+      final profilePic = profileController.profile.value?.profilePic;
+      
+      return Stack(
+        children: [
+          CircleAvatar(
+            radius: radius,
+            backgroundColor: Colors.grey[200],
+            backgroundImage: _getAvatarProvider(profilePic),
+            child: (profilePic == null || profilePic.isEmpty)
+                ? Icon(Icons.person, color: Colors.grey, size: radius * 1.2)
+                : null,
+          ),
+          Positioned(
+            right: 0,
+            bottom: 0,
+            child: Container(
+              width: radius * 0.6,
+              height: radius * 0.6,
+              decoration: BoxDecoration(
+                color: const Color(0xFF4ADE80),
+                shape: BoxShape.circle,
+                border: Border.all(color: Colors.white, width: 2),
+              ),
             ),
           ),
-        ),
-      ],
-    );
+        ],
+      );
+    });
+  }
+
+  ImageProvider? _getAvatarProvider(String? profilePic) {
+    if (profilePic == null || profilePic.isEmpty) return null;
+    if (profilePic.startsWith('data:image')) {
+      try {
+        final base64String = profilePic.split(',').last;
+        return MemoryImage(base64Decode(base64String));
+      } catch (e) {
+        debugPrint('Error decoding base64 image: $e');
+        return null;
+      }
+    }
+    return NetworkImage(profilePic);
   }
 
   Widget _buildContentHeader() {
