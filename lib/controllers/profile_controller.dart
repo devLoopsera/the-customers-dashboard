@@ -23,6 +23,15 @@ class ProfileController extends GetxController {
   
   // Guard to prevent multiple simultaneous requests
   bool _isFetchingPic = false;
+  DateTime? _lastUploadTime;
+
+  String _addCacheBuster(String url) {
+    if (!url.startsWith('http')) return url;
+    // Don't add if it's a data URI
+    if (url.startsWith('data:')) return url;
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    return url.contains('?') ? '$url&t=$timestamp' : '$url?t=$timestamp';
+  }
 
   @override
   void onInit() {
@@ -84,12 +93,12 @@ class ProfileController extends GetxController {
             }
 
             if (imageUrl != null && imageUrl.startsWith('http')) {
-              profile.value = profile.value?.copyWith(profilePic: imageUrl);
+              profile.value = profile.value?.copyWith(profilePic: _addCacheBuster(imageUrl));
             }
           } catch (e) {
             // Raw URL string
             if (response.body.trim().startsWith('http')) {
-              profile.value = profile.value?.copyWith(profilePic: response.body.trim());
+              profile.value = profile.value?.copyWith(profilePic: _addCacheBuster(response.body.trim()));
             }
           }
         }
@@ -101,7 +110,7 @@ class ProfileController extends GetxController {
     }
   }
 
-  Future<void> fetchProfile() async {
+  Future<void> fetchProfile({bool refreshPic = false}) async {
     isLoading.value = true;
     try {
       final storedUser = _storage.read('user');
@@ -135,7 +144,30 @@ class ProfileController extends GetxController {
             jsonResponse = data;
           }
 
-          profile.value = UserProfile.fromJson(jsonResponse);
+          final newUserProfile = UserProfile.fromJson(jsonResponse);
+          
+          // Protection: If we recently uploaded an image (within 10 seconds), 
+          // and the fetched profile has no image, keep our local image.
+          // This prevents the "flicker" when the backend is eventually consistent.
+          bool recentlyUploaded = _lastUploadTime != null && 
+                                DateTime.now().difference(_lastUploadTime!).inSeconds < 10;
+          
+          if (recentlyUploaded && (newUserProfile.profilePic == null || newUserProfile.profilePic!.isEmpty)) {
+            debugPrint('Preserving recently uploaded image as backend returned empty');
+            profile.value = newUserProfile.copyWith(profilePic: profile.value?.profilePic);
+          } else {
+            // Add cache buster to the incoming URL if it's a network image
+            if (newUserProfile.profilePic != null && newUserProfile.profilePic!.isNotEmpty) {
+              profile.value = newUserProfile.copyWith(profilePic: _addCacheBuster(newUserProfile.profilePic!));
+            } else {
+              profile.value = newUserProfile;
+            }
+          }
+
+          // Fetch the profile pic from the dedicated webhook if requested
+          if (refreshPic) {
+            await fetchProfilePic(force: true);
+          }
         }
       }
     } catch (e) {
@@ -165,7 +197,12 @@ class ProfileController extends GetxController {
     if (profile.value == null) return;
 
     isUploading.value = true;
+    _lastUploadTime = DateTime.now();
     try {
+      // Create a local data URI for immediate UI update
+      final bytes = await imageFile.readAsBytes();
+      final localDataUri = 'data:image/jpeg;base64,${base64Encode(bytes)}';
+      
       final request = http.MultipartRequest('POST', Uri.parse(_profilePicWebhookUrl));
       
       // Add all customer data
@@ -179,7 +216,6 @@ class ProfileController extends GetxController {
 
       // Add file
       if (kIsWeb) {
-        final bytes = await imageFile.readAsBytes();
         request.files.add(http.MultipartFile.fromBytes(
           'profile_pic',
           bytes,
@@ -200,6 +236,9 @@ class ProfileController extends GetxController {
       debugPrint('Upload Response Status: ${httpResponse.statusCode}');
       
       if (httpResponse.statusCode == 200) {
+        // Successfully uploaded, set the local image first for immediate feedback
+        profile.value = profile.value?.copyWith(profilePic: localDataUri);
+        
         // Check if the response is an image binary
         final contentType = httpResponse.headers['content-type']?.toLowerCase() ?? '';
         bool isImage = contentType.startsWith('image/');
@@ -220,49 +259,51 @@ class ProfileController extends GetxController {
           
           profile.value = profile.value?.copyWith(profilePic: dataUri);
           debugPrint('Set profile picture from binary response (base64)');
-          Get.snackbar('Success', 'Profile picture updated successfully');
-          return;
-        }
-
-        // It's not an image, try to parse as JSON or text
-        String responseData = '';
-        try {
-          responseData = utf8.decode(httpResponse.bodyBytes, allowMalformed: true);
-        } catch (e) {
-          debugPrint('Could not decode response as UTF-8');
-        }
-
-        if (responseData.isNotEmpty) {
+        } else {
+          // It's not an image binary, try to parse as JSON or text
+          String responseData = '';
           try {
-            final decoded = json.decode(responseData.trim());
-            String? imageUrl;
-            
-            if (decoded is Map<String, dynamic>) {
-              imageUrl = (decoded['profile_pic'] ?? decoded['image_url'] ?? decoded['url'])?.toString();
-            } else if (decoded is List && decoded.isNotEmpty) {
-              final first = decoded.first;
-              if (first is Map<String, dynamic>) {
-                imageUrl = (first['profile_pic'] ?? first['image_url'] ?? first['url'])?.toString();
-              } else if (first is String) {
-                imageUrl = first;
+            responseData = utf8.decode(httpResponse.bodyBytes, allowMalformed: true);
+          } catch (e) {
+            debugPrint('Could not decode response as UTF-8');
+          }
+
+          if (responseData.isNotEmpty) {
+            try {
+              final decoded = json.decode(responseData.trim());
+              String? imageUrl;
+              
+              if (decoded is Map<String, dynamic>) {
+                imageUrl = (decoded['profile_pic'] ?? decoded['image_url'] ?? decoded['url'])?.toString();
+              } else if (decoded is List && decoded.isNotEmpty) {
+                final first = decoded.first;
+                if (first is Map<String, dynamic>) {
+                  imageUrl = (first['profile_pic'] ?? first['image_url'] ?? first['url'])?.toString();
+                } else if (first is String) {
+                  imageUrl = first;
+                }
+              }
+
+              if (imageUrl != null && imageUrl.startsWith('http')) {
+                profile.value = profile.value?.copyWith(profilePic: _addCacheBuster(imageUrl));
+                debugPrint('Set profile picture from JSON response with cache buster: ${profile.value?.profilePic}');
+              } else {
+                // Wait a bit before fetching to let the backend settle
+                await Future.delayed(const Duration(seconds: 2));
+                await fetchProfile();
+              }
+            } catch (e) {
+              if (responseData.trim().startsWith('http')) {
+                profile.value = profile.value?.copyWith(profilePic: _addCacheBuster(responseData.trim()));
+              } else {
+                await Future.delayed(const Duration(seconds: 1));
+                await fetchProfile();
               }
             }
-
-            if (imageUrl != null && imageUrl.startsWith('http')) {
-              profile.value = profile.value?.copyWith(profilePic: imageUrl);
-              debugPrint('Set profile picture from JSON response: $imageUrl');
-            } else {
-              await fetchProfile();
-            }
-          } catch (e) {
-            if (responseData.trim().startsWith('http')) {
-              profile.value = profile.value?.copyWith(profilePic: responseData.trim());
-            } else {
-              await fetchProfile();
-            }
+          } else {
+            await Future.delayed(const Duration(seconds: 1));
+            await fetchProfile();
           }
-        } else {
-          await fetchProfile();
         }
         Get.snackbar('Success', 'Profile picture updated successfully');
       } else {
@@ -278,6 +319,12 @@ class ProfileController extends GetxController {
 
   Future<void> deleteProfilePic() async {
     if (profile.value == null) return;
+    
+    // If no picture exists locally, don't bother calling the server if the user is just trying to clear it
+    if (profile.value!.profilePic == null || profile.value!.profilePic!.isEmpty) {
+      Get.snackbar('Info', 'The image does not exist');
+      return;
+    }
 
     isLoading.value = true;
     try {
@@ -299,9 +346,18 @@ class ProfileController extends GetxController {
           // Remove pic locally
           profile.value = profile.value?.copyWith(profilePic: '');
           Get.snackbar('Success', 'Your profile pic has been deleted successfully.');
+        } else if (data['Result']?.toString().toLowerCase().contains('not exist') == true || 
+                   data['Message']?.toString().toLowerCase().contains('not found') == true ||
+                   data['Message']?.toString().toLowerCase().contains('does not exist') == true) {
+          // Specific case for non-existent image
+          profile.value = profile.value?.copyWith(profilePic: '');
+          Get.snackbar('Info', 'The image does not exist');
         } else {
-          Get.snackbar('Error', 'Failed to delete profile picture');
+          Get.snackbar('Error', 'Failed to delete profile picture: ${data['Message'] ?? 'Unknown error'}');
         }
+      } else if (response.statusCode == 404) {
+        profile.value = profile.value?.copyWith(profilePic: '');
+        Get.snackbar('Info', 'The image does not exist');
       } else {
         Get.snackbar('Error', 'Failed to delete profile picture');
       }

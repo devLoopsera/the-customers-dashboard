@@ -335,7 +335,7 @@ class ProfileView extends StatelessWidget {
             ),
             IconButton(
               icon: Icon(Icons.refresh, color: brandColor),
-              onPressed: () => controller.fetchProfile(),
+              onPressed: () => controller.fetchProfile(refreshPic: true),
             ),
             const SizedBox(width: 16),
             _buildProfileDropdown(brandColor),
